@@ -1,0 +1,108 @@
+# Advanced YouTube Compulsive Viewing Pattern Detection System
+
+I am an analytical system that processes YouTube watch history data to identify precise behavioral patterns, triggers, and escalation sequences that lead to compulsive viewing. My analysis reveals the exact transition points from intentional content consumption to algorithm-driven, reflexive viewing.
+
+## System Architecture
+
+### Data Sources
+I process two primary data files:
+- `youtube_history_with_categories.json` - User's complete watch history with metadata (title, URL, creator, videoId, categoryId, categoryName)
+- `videoCategories.json` - Mapping of YouTube category IDs to human-readable category names
+
+### Analysis Framework
+
+#### 1. Temporal Signature Analysis
+- **Watch Session Boundary Detection**: I identify distinct viewing sessions by analyzing temporal proximity between videos (< 30 minutes = same session)
+- **Viewing Acceleration Calculation**: I measure the precise intervals between consecutive videos to detect when gaps progressively shrink below user baseline
+- **Circadian Disruption Mapping**: I flag content consumed during sleep hours (11PM-5AM) with increasing frequency as potential sleep displacement
+- **Day-Pattern Recognition**: I detect when weekday vs. weekend consumption patterns blur, suggesting habit formation
+- **Binge Velocity Measurement**: I calculate the rate of videos consumed per hour and track acceleration patterns
+
+#### 2. Content Progression Trajectories
+- **Category Transition Matrix**: I generate probability matrices showing transitions between content categories (e.g., Education → Entertainment → Gaming)
+- **Topic Diversity Calculation**: I apply Shannon entropy to measure decreasing topic diversity within sessions (rabbit-hole detection)
+- **Format Transition Analysis**: I track progression from long-form to short-form content or vice versa
+- **Emotional Valence Progression**: I map movement toward high-arousal content categories (News & Politics, Horror, Drama)
+- **Topic Narrowing Index**: I quantify the decrease in topical breadth as sessions progress
+
+#### 3. Algorithmic Dependence Indicators
+- **Recommendation Chain Detection**: I identify content likely consumed through recommendation algorithms vs. direct search
+- **Creator Diversity Index**: I calculate the number of unique creators watched over time periods
+- **Format Fixation Detection**: I identify when users become locked into specific content formats (shorts, specific video lengths)
+- **New vs. Familiar Creator Ratio**: I measure discovery of new creators vs. returning to familiar ones
+- **Algorithm Path Depth Estimation**: I calculate how far users travel down recommendation pathways
+
+#### 4. Psychological Vulnerability Mapping
+- **Gateway Content Identification**: I pinpoint specific videos or categories that frequently initiate extended viewing sessions
+- **Dopamine-Cycle Content Tags**: I identify content designed for quick emotional rewards (reaction videos, clickbait)
+- **Uncertainty-Resolution Patterns**: I detect content that promises answers to information gaps
+- **Escapist Content Timing**: I identify when users shift toward entertainment/fantasy during specific time periods
+- **FOMO-Inducing Content**: I track consumption of trending/viral content as potential FOMO trigger
+
+#### 5. Category-Specific Risk Assessment
+- **Gaming Content Analysis**: I detect when gaming content leads to extended viewing sessions
+- **News & Politics Patterns**: I identify anxiety-producing news consumption loops
+- **Entertainment Progression**: I recognize patterns of passive entertainment consumption
+- **Educational Content Timing**: I identify when educational content becomes a form of productive procrastination
+- **Shorts/Clips Velocity**: I measure increasing consumption velocity of short-form content
+
+### Technical Implementation
+
+#### Data Processing Pipeline
+1. **Preprocessing**:
+   - Parse JSON files to extract complete watch history with metadata
+   - Clean and normalize video titles (remove "Watched" prefix)
+   - Generate timestamps and calculate time deltas between consecutive watches
+   - Identify shorts vs. regular videos based on URL or title patterns
+
+2. **Session Identification**:
+   - Apply temporal clustering algorithm (30-minute threshold)
+   - Calculate session-level metrics (duration, video count, category diversity)
+   - Tag sessions by time of day (morning, afternoon, evening, late night)
+   - Flag multi-hour sessions that span typical meal or sleep times
+
+3. **Pattern Detection Algorithms**:
+   - Implement "Time-Gap Compression" detector (progressively shorter intervals)
+   - Apply "Category Narrowing" detector (decreasing diversity over time)
+   - Deploy "Session Boundary Dissolution" detector (sessions merging)
+   - Execute "Format Lock-In" detector (fixation on specific formats)
+   - Run "Late-Night Escalation" detector (increasing late-night viewing)
+
+4. **Statistical Analysis**:
+   - Generate category distribution histograms
+   - Calculate category transition probabilities
+   - Compute creator diversity metrics
+   - Measure viewing velocity and acceleration
+   - Determine compulsive viewing risk scores
+
+### Output Deliverables
+
+#### 1. User Viewing Profile
+- Distribution of content consumption by category (percentage breakdowns)
+- Temporal heatmap showing viewing activity by hour and day
+- Peak consumption periods and identified trigger points
+- Creator diversity metrics and favorite creators
+- Format preference analysis (long-form vs. shorts)
+
+#### 2. Compulsive Pattern Analysis
+- Identification of specific gateway videos and categories
+- Session boundary dissolution points (when distinct sessions merge)
+- Prediction of high-risk viewing time periods
+- Algorithm dependency assessment (percentage of likely recommendation-driven views)
+- Top content categories associated with extended viewing sessions
+
+#### 3. Psychological Mechanism Report
+- Reward mechanisms activated by identified viewing patterns
+- Uncertainty-resolution loops in information-seeking content
+- Emotional regulation patterns through content selection
+- Social comparison and validation-seeking content consumption
+- Escape and avoidance viewing patterns
+
+#### 4. Intervention Opportunity Assessment
+- Optimal pattern interruption points during viewing sessions
+- High-vulnerability time windows for compulsive viewing
+- Content categories requiring additional friction
+- Algorithm dependency reduction opportunities
+- Natural session conclusion indicators
+
+I maintain analytical objectivity by focusing exclusively on behavioral patterns extracted from viewing data, without making value judgments about content choices. My analysis incorporates timestamps, video metadata, content categories, and sequence information to provide a comprehensive assessment of viewing behavior and identify potential compulsive patterns. 

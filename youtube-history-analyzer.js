@@ -150,8 +150,14 @@ async function analyzeAllData(content, systemPrompt, apiKey, batchSize = 50) {
     console.log(`Processing batch ${Math.floor(i/batchSize) + 1} of ${totalBatches}...`);
     const batch = content.slice(i, i + batchSize);
     
-    // Create prompt for this batch
-    const batchPrompt = `${systemPrompt}\n\nHere is batch ${Math.floor(i/batchSize) + 1} of ${totalBatches} from my watch history:\n${JSON.stringify(batch, null, 2)}`;
+    // Add explicit JSON format requirement to batch prompt
+    const batchPrompt = `${systemPrompt}
+
+Here is batch ${Math.floor(i/batchSize) + 1} of ${totalBatches} from my watch history:
+${JSON.stringify(batch, null, 2)}
+
+YOUR RESPONSE MUST BE IN VALID JSON FORMAT EXACTLY AS SPECIFIED IN THE INSTRUCTIONS ABOVE.
+Do not include any text outside the JSON object. Ensure all keys and values match the required structure.`;
     
     // Make API call for this batch
     try {
@@ -163,10 +169,53 @@ async function analyzeAllData(content, systemPrompt, apiKey, batchSize = 50) {
     }
   }
   
-  // Now we need to do a final analysis combining all the batch results
-  const finalPrompt = `${systemPrompt}\n\nI've analyzed my watch history in batches. Here are the insights from each batch:\n\n` +
-    allResults.map((result, i) => `--- BATCH ${i+1} ANALYSIS ---\n${result}\n\n`).join('') +
-    "\nPlease provide a comprehensive analysis that combines all these batch insights into a cohesive summary.";
+  // Add explicit JSON format requirement to final prompt
+  const finalPrompt = `${systemPrompt}
+
+I've analyzed my watch history in batches. Here are the insights from each batch:
+
+${allResults.map((result, i) => `--- BATCH ${i+1} ANALYSIS ---\n${result}\n\n`).join('')}
+
+Please provide a comprehensive analysis that combines all these batch insights into a cohesive summary.
+
+YOUR RESPONSE MUST BE IN VALID JSON FORMAT EXACTLY AS SPECIFIED IN THE INSTRUCTIONS ABOVE.
+Use this structure:
+{
+  "totalVideosAnalyzed": number,
+  "batchCount": number,
+  "categories": [
+    {"name": string, "percentage": number},
+    ...
+  ],
+  "formatDistribution": {
+    "shortForm": number,
+    "longForm": number
+  },
+  "dominantTopics": [
+    {"name": string, "percentage": number},
+    ...
+  ],
+  "categoryTransitions": [
+    {"from": string, "to": string, "strength": number, "description": string},
+    ...
+  ],
+  "psychologicalPatterns": [
+    {"title": string, "description": string, "evidenceStrength": number},
+    ...
+  ],
+  "recommendations": [
+    {"id": number, "text": string},
+    ...
+  ],
+  "keyInsights": {
+    "categoryInsight": string,
+    "formatInsight": string,
+    "topicInsight": string,
+    "algorithmicInsight": string
+  }
+}
+
+DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT. ENSURE YOUR RESPONSE CAN BE DIRECTLY PARSED WITH JSON.parse().`;
   
   // Make final API call
   try {
@@ -401,26 +450,26 @@ function validateAndProcessRawData(data, totalVideos) {
   try {
     const validated = JSON.parse(JSON.stringify(data));
 
-    // Process category transitions - remove same-to-same and normalize strength to 0-10
+    // Process category transitions - remove same-to-same and normalize strength to 0-5
     if (validated.categoryTransitions && Array.isArray(validated.categoryTransitions)) {
       validated.categoryTransitions = validated.categoryTransitions
         .filter(transition => transition.from !== transition.to) // Remove same-to-same transitions
         .map(transition => {
-          // Normalize strength to 0-10 range
+          // Normalize strength to 0-5 range
           let strength = parseFloat(transition.strength) || 0;
           
           // Convert from percentage if > 1
-          if (strength > 1) strength = strength / 10;
+          if (strength > 5) strength = strength / 2;
           
-          // Convert from 0-1 range to 0-10
-          if (strength <= 1) strength = strength * 10;
+          // Convert from 0-1 range to 0-5
+          if (strength <= 1) strength = strength * 5;
           
-          // Clamp to 0-10 range
-          strength = Math.min(10, Math.max(0, strength));
+          // Clamp to 0-5 range
+          strength = Math.min(5, Math.max(0, strength));
           
           return {
             ...transition,
-            strength: parseFloat(strength.toFixed(1)) // Round to 1 decimal place
+            strength: parseFloat(strength.toFixed(2)) // Round to 2 decimal places
           };
         });
     }
@@ -449,6 +498,22 @@ function validateAndProcessRawData(data, totalVideos) {
           evidenceStrength: Math.min(100, Math.max(0, pattern.evidenceStrength || 0))
         };
       });
+    }
+
+    // Process format distribution - convert from decimal to percentage if needed
+    if (validated.formatDistribution) {
+      // If values are in decimal format (e.g., 0.55), convert to percentages
+      if (validated.formatDistribution.shortForm <= 1) {
+        validated.formatDistribution.shortForm = Math.round(validated.formatDistribution.shortForm * 100);
+      }
+      
+      if (validated.formatDistribution.longForm <= 1) {
+        validated.formatDistribution.longForm = Math.round(validated.formatDistribution.longForm * 100);
+      }
+      
+      // Ensure they're numbers
+      validated.formatDistribution.shortForm = parseInt(validated.formatDistribution.shortForm) || 0;
+      validated.formatDistribution.longForm = parseInt(validated.formatDistribution.longForm) || 0;
     }
 
     // Rest of the validation remains unchanged

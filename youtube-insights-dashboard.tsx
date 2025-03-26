@@ -977,13 +977,12 @@ const YouTubeInsightsDashboard = () => {
               <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <Treemap data={treemapData} dataKey="value" aspectRatio={4 / 3} stroke="#fff" fill="#8884d8">
-                    {treemapData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}\`} fill={COLORS.chartColors[index % COLORS.chartColors.length]} />  => (
-                      <Cell key={\`cell-${index}`}
-                        fill={COLORS.chartColors[index % COLORS.chartColors.length]}
-                      />
-                    ))}
+                  {treemapData.map((entry, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS.chartColors[index % COLORS.chartColors.length]}
+                    />
+                  ))}
                   </Treemap>
                 </ResponsiveContainer>
               </div>

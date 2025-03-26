@@ -25,3 +25,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore upload directories with user data
+/upload/
+/public/upload/
+/output/*.json
+/public/output/*.json
