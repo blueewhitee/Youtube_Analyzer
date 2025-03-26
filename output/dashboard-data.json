@@ -1,0 +1,157 @@
+{
+  "totalVideosAnalyzed": 36,
+  "batchCount": 2,
+  "categories": [
+    {
+      "name": "People & Blogs",
+      "percentage": 30.26
+    },
+    {
+      "name": "Entertainment",
+      "percentage": 28.95
+    },
+    {
+      "name": "News & Politics",
+      "percentage": 9.47
+    },
+    {
+      "name": "Comedy",
+      "percentage": 5.26
+    },
+    {
+      "name": "Education",
+      "percentage": 7.89
+    },
+    {
+      "name": "Film & Animation",
+      "percentage": 3.95
+    },
+    {
+      "name": "Howto & Style",
+      "percentage": 1.32
+    },
+    {
+      "name": "Science & Technology",
+      "percentage": 1.32
+    },
+    {
+      "name": "",
+      "percentage": 2.63
+    }
+  ],
+  "formatDistribution": {
+    "shortForm": 50,
+    "longForm": 50
+  },
+  "dominantTopics": [
+    {
+      "name": "Indian Entertainment & News",
+      "percentage": 35.53
+    },
+    {
+      "name": "Short-form entertainment",
+      "percentage": 10.79
+    },
+    {
+      "name": "Social Commentary",
+      "percentage": 7.89
+    },
+    {
+      "name": "Relatable/Funny Shorts",
+      "percentage": 7.89
+    },
+    {
+      "name": "Educational Content",
+      "percentage": 5.26
+    },
+    {
+      "name": "Movie Trailers",
+      "percentage": 3.95
+    },
+    {
+      "name": "General Interest/Vlogs",
+      "percentage": 5.26
+    }
+  ],
+  "categoryTransitions": [
+    {
+      "from": "People & Blogs",
+      "to": "Entertainment",
+      "strength": 5,
+      "description": "Transition from People & Blogs to Entertainment, indicates a possible shift from relatable content to more engaging forms of entertainment. Common transition."
+    },
+    {
+      "from": "Entertainment",
+      "to": "People & Blogs",
+      "strength": 6.6,
+      "description": "Shift from trailers to relatable content, potentially indicating a return to content that provides a sense of connection after entertainment viewing."
+    },
+    {
+      "from": "People & Blogs",
+      "to": "Education",
+      "strength": 5,
+      "description": "Transition from personal content to educational videos, possibly indicating a search for information or self-improvement content. This could be a sign of proactive engagement or a break from more passive viewing."
+    },
+    {
+      "from": "People & Blogs",
+      "to": "Comedy",
+      "strength": 5,
+      "description": "Transition from personal content to comedy videos, possibly for a break or change of pace, indicating a desire for lighthearted amusement."
+    },
+    {
+      "from": "Entertainment",
+      "to": "Comedy",
+      "strength": 5,
+      "description": "Transition from entertainment videos to comedy videos, possibly for a break or change of pace."
+    }
+  ],
+  "psychologicalPatterns": [
+    {
+      "title": "Short-Form Emphasis Shift",
+      "description": "While initially balanced, the second batch shows a greater emphasis on short-form content, suggesting a possible shift towards seeking quicker gratification.",
+      "evidenceStrength": 0.7
+    },
+    {
+      "title": "Category Switching and Relatability",
+      "description": "Frequent switching between 'Entertainment', 'People & Blogs' and 'Comedy', coupled with high engagement in relatable content, indicates a search for connection and stimulation. This might suggest difficulty focusing or a need for diverse input.",
+      "evidenceStrength": 0.65
+    },
+    {
+      "title": "Late Evening Binge & Unwinding",
+      "description": "The persistence of the late-evening viewing pattern suggests YouTube is being used as a consistent method to unwind, potentially leading to difficulty regulating usage before bed.",
+      "evidenceStrength": 0.6
+    }
+  ],
+  "recommendations": [
+    {
+      "id": 1,
+      "text": "Set stringent time limits for YouTube usage, especially during late evening hours, and consider using a timer or app blocker."
+    },
+    {
+      "id": 2,
+      "text": "Consciously explore longer-form content and deliberately broaden your viewing choices to categories outside your usual preferences to challenge the algorithm and your own habits."
+    },
+    {
+      "id": 3,
+      "text": "Practice mindful viewing by actively selecting videos instead of relying on autoplay. Ask yourself *why* you're choosing each video."
+    },
+    {
+      "id": 4,
+      "text": "Identify the specific needs that YouTube fulfills (e.g., connection, entertainment, information) and actively seek alternative real-world activities to meet those needs."
+    },
+    {
+      "id": 5,
+      "text": "Become aware of triggers that lead to compulsive viewing sessions (e.g., boredom, stress) and develop personalized coping strategies for each trigger."
+    },
+    {
+      "id": 6,
+      "text": "Schedule specific, dedicated times for YouTube consumption instead of allowing it to occur spontaneously throughout the day. This can help regain control over viewing habits."
+    }
+  ],
+  "keyInsights": {
+    "categoryInsight": "The user shows a consistent preference for 'People & Blogs' and 'Entertainment', reflecting a desire for connection, relatable content, and amusement. The presence of 'News & Politics', though less pronounced, indicates some engagement with current events.",
+    "formatInsight": "While initially balanced, a trend towards increased consumption of short-form content in the second batch suggests a potential gravitation towards easily digestible and quick entertainment. This could be a precursor to more compulsive short-form viewing.",
+    "topicInsight": "The dominant topics include a strong focus on Indian entertainment and related news, alongside interests in general interest vlogs, relatable short content and social commentary. This indicates a cultural focus and an interest in connecting with others and understanding societal issues.",
+    "algorithmicInsight": "The YouTube algorithm is actively reinforcing the user's preferences, creating a feedback loop that perpetuates existing viewing habits. Breaking free from this cycle requires conscious effort to diversify viewing choices and resist the algorithm's recommendations at times."
+  }
+}
