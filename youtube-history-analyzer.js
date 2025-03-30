@@ -461,22 +461,25 @@ function validateAndProcessRawData(data, totalVideos) {
   try {
     const validated = JSON.parse(JSON.stringify(data));
 
-    // Process category transitions - remove same-to-same and normalize strength to 0-5
+    // Process category transitions - remove same-to-same and normalize strength to 0-1
     if (validated.categoryTransitions && Array.isArray(validated.categoryTransitions)) {
       validated.categoryTransitions = validated.categoryTransitions
         .filter(transition => transition.from !== transition.to) // Remove same-to-same transitions
         .map(transition => {
-          // Normalize strength to 0-5 range
           let strength = parseFloat(transition.strength) || 0;
           
-          // Convert from percentage if > 1
-          if (strength > 5) strength = strength / 2;
-          
-          // Convert from 0-1 range to 0-5
-          if (strength <= 1) strength = strength * 5;
-          
-          // Clamp to 0-5 range
-          strength = Math.min(5, Math.max(0, strength));
+          // Normalize strength to 0-1 range based on potential input scale
+          if (strength > 1 && strength <= 5) {
+              // If strength is likely in the 1-5 range (based on previous logic), scale it down
+              strength = strength / 5;
+          } else if (strength > 5) {
+              // If strength is likely a percentage (or >5), scale it assuming max 100
+               strength = strength / 100;
+          }
+          // If strength was already <= 1, it doesn't need scaling down, just clamping.
+
+          // Clamp to 0-1 range
+          strength = Math.min(1, Math.max(0, strength)); // Ensures strength is between 0 and 1
           
           return {
             ...transition,
