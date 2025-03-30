@@ -316,13 +316,11 @@ const YouTubeInsightsDashboard = () => {
   const [darkMode, setDarkMode] = useState(false)
   const [files, setFiles] = useState({
     history: null,
-    prompt: null,
   })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [analysisError, setAnalysisError] = useState(null)
   const [analysisData, setAnalysisData] = useState(analyticsData)
   const fileInputRef = useRef(null)
-  const promptInputRef = useRef(null)
 
   // Prepare data
   const treemapData = prepareTreemapData(analysisData.categories)
@@ -339,12 +337,9 @@ const YouTubeInsightsDashboard = () => {
   ]
 
   // Handle file selection
-  const handleFileChange = useCallback((e, type) => {
+  const handleFileChange = useCallback((e) => {
     if (e.target.files && e.target.files[0]) {
-      setFiles((prev) => ({
-        ...prev,
-        [type]: e.target.files[0],
-      }))
+      setFiles({ history: e.target.files[0] })
     }
   }, [])
 
@@ -356,12 +351,10 @@ const YouTubeInsightsDashboard = () => {
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files)
 
-      // Try to identify file types by extension
+      // Only look for JSON files (history files)
       droppedFiles.forEach((file) => {
         if (file.name.endsWith(".json")) {
-          setFiles((prev) => ({ ...prev, history: file }))
-        } else if (file.name.endsWith(".txt")) {
-          setFiles((prev) => ({ ...prev, prompt: file }))
+          setFiles({ history: file })
         }
       })
     }
@@ -375,38 +368,32 @@ const YouTubeInsightsDashboard = () => {
 
   // Handle analysis submission
   const handleAnalyze = useCallback(async () => {
-    setIsAnalyzing(true);
-    setAnalysisError(null);
-  
-    const formData = new FormData();
-    formData.append('historyFile', files.history);
-    formData.append('promptFile', files.prompt);
-  
-    try {
-      // Add this fetch call:
-      const response = await fetch('/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      setAnalysisData(data.dashboardData);
-      setActiveSection("overview");
-    } catch (error) {
-      console.error("Analysis failed:", error);
-      setAnalysisError(`Analysis failed: ${error.message}`);
-    } finally {
-      setIsAnalyzing(false);
-    }
-  }, [files.history, files.prompt]);
+    setIsAnalyzing(true)
+    setAnalysisError(null)
 
-  // Add a function to load data from the output directory on component mount
-  
-  // Add useEffect to load data on component mount
+    const formData = new FormData()
+    formData.append("historyFile", files.history)
+
+    try {
+      const response = await fetch("/upload", {
+        method: "POST",
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setAnalysisData(data.dashboardData)
+      setActiveSection("overview")
+    } catch (error) {
+      console.error("Analysis failed:", error)
+      setAnalysisError(`Analysis failed: ${error.message}`)
+    } finally {
+      setIsAnalyzing(false)
+    }
+  }, [files.history])
 
   // Handle browse button click
   const handleBrowseClick = useCallback((inputRef) => {
@@ -541,15 +528,7 @@ const YouTubeInsightsDashboard = () => {
                   id="history-file-upload"
                   className="hidden"
                   accept=".json"
-                  onChange={(e) => handleFileChange(e, "history")}
-                />
-                <input
-                  ref={promptInputRef}
-                  type="file"
-                  id="prompt-file-upload"
-                  className="hidden"
-                  accept=".txt"
-                  onChange={(e) => handleFileChange(e, "prompt")}
+                  onChange={handleFileChange}
                 />
 
                 <div
@@ -572,8 +551,8 @@ const YouTubeInsightsDashboard = () => {
                       d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                     />
                   </svg>
-                  <span className="text-lg font-medium mb-1">Drag and drop your files here</span>
-                  <span className="text-sm mb-4">or select files below</span>
+                  <span className="text-lg font-medium mb-1">Drag and drop your file here</span>
+                  <span className="text-sm mb-4">or select file below</span>
 
                   <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                     <button
@@ -609,40 +588,6 @@ const YouTubeInsightsDashboard = () => {
                         "Select History File (JSON)"
                       )}
                     </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleBrowseClick(promptInputRef)}
-                      className={cn(
-                        "px-4 py-2 rounded-md text-sm font-medium flex-1 flex items-center justify-center",
-                        files.prompt
-                          ? darkMode
-                            ? "bg-green-800 text-white"
-                            : "bg-green-100 text-green-800"
-                          : darkMode
-                            ? "bg-gray-700 hover:bg-gray-600"
-                            : "bg-gray-100 hover:bg-gray-200",
-                      )}
-                    >
-                      {files.prompt ? (
-                        <>
-                          <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            className="h-4 w-4 mr-2"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          {files.prompt.name.length > 20
-                            ? files.prompt.name.substring(0, 20) + "..."
-                            : files.prompt.name}
-                        </>
-                      ) : (
-                        "Select Prompt File (TXT)"
-                      )}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -651,7 +596,7 @@ const YouTubeInsightsDashboard = () => {
               <div className="flex justify-center mb-6">
                 <button
                   onClick={handleAnalyze}
-                  disabled={isAnalyzing || (!files.history && !files.prompt)}
+                  disabled={isAnalyzing || !files.history}
                   className={cn(
                     "px-6 py-3 rounded-md font-medium transition-colors flex items-center",
                     isAnalyzing
@@ -661,7 +606,7 @@ const YouTubeInsightsDashboard = () => {
                       : darkMode
                         ? "bg-red-600 hover:bg-red-700 text-white"
                         : "bg-red-500 hover:bg-red-600 text-white",
-                    !files.history && !files.prompt && "opacity-50 cursor-not-allowed",
+                    !files.history && "opacity-50 cursor-not-allowed",
                   )}
                 >
                   {isAnalyzing ? (

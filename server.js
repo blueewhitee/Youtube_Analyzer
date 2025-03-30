@@ -28,37 +28,35 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 nextApp.prepare().then(() => {
-  // Endpoint for file upload
-  app.post('/upload', upload.fields([{ name: 'historyFile', maxCount: 1 }, { name: 'promptFile', maxCount: 1 }]), async (req, res) => {
-    console.log("------------------------");
+  // Update your server-side upload handler
+  app.post('/upload', upload.fields([
+    { name: 'historyFile', maxCount: 1 }
+  ]), async (req, res) => {
     console.log("UPLOAD ENDPOINT CALLED");
     console.log("FILES RECEIVED:", req.files ? Object.keys(req.files) : "No files");
     
-    if (!req.files || !req.files['historyFile'] || !req.files['promptFile']) {
-      console.log("ERROR: Missing required files");
-      return res.status(400).send('Please upload both history and prompt files.');
+    if (!req.files || !req.files['historyFile']) {
+      console.log("ERROR: Missing history file");
+      return res.status(400).send('Please upload history file.');
     }
 
     const historyFilePath = req.files['historyFile'][0].path;
-    const systemPromptPath = req.files['promptFile'][0].path;
     const videoCategoriesPath = path.join(__dirname, 'videoCategories.json');
     
-    console.log("HISTORY FILE:", historyFilePath);
-    console.log("PROMPT FILE:", systemPromptPath);
-    console.log("CATEGORIES FILE:", videoCategoriesPath);
-
     try {
-      console.log("CALLING ANALYZER...");
-      const result = await analyzeYouTubeHistory(historyFilePath, systemPromptPath, videoCategoriesPath);
-      console.log("ANALYZER RETURNED:", result ? "Success" : "No result");
+      console.log("Starting analysis...");
+      // Call the analyzer with only history file path (no prompt file)
+      const result = await analyzeYouTubeHistory(historyFilePath, videoCategoriesPath);
+      console.log("Analysis complete, sending response");
       
-      // Send the dashboard data back to the client
-      res.json({ dashboardData: result.dashboardData, rawAnalysis: result.rawAnalysis });
+      return res.json({
+        dashboardData: result.dashboardData,
+        rawAnalysis: result.rawAnalysis
+      });
     } catch (error) {
-      console.error("ANALYSIS FAILED:", error);
-      res.status(500).json({ error: error.message });
+      console.error("Error during analysis:", error);
+      return res.status(500).send(`Analysis failed: ${error.message}`);
     }
-    console.log("------------------------");
   });
 
   // Let Next.js handle all other routes
