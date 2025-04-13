@@ -29,5 +29,6 @@ next-env.d.ts
 # Ignore upload directories with user data
 /upload/
 /public/upload/
+upload
 /output/*.json
 /public/output/*.json

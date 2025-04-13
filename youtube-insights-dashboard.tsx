@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import {
   AreaChart,
   Area,
@@ -130,35 +130,50 @@ const analyticsData = {
     {
       from: "People & Blogs",
       to: "Entertainment",
-      strength: 3.1,
-      description:
-        "Frequent shifts between personal vlogs and general entertainment videos, indicating a desire for variety or breaks from more serious content.",
+      strength: 0.62,
+      description: "Shift from vlogs to entertainment.",
     },
     {
       from: "Entertainment",
       to: "People & Blogs",
-      strength: 2.9,
-      description:
-        "Common transitions from entertainment to personal content, suggesting a connection seeking relatability or real-life narratives after entertainment.",
+      strength: 0.58,
+      description: "Seeking relatable content after entertainment.",
     },
     {
       from: "Education",
       to: "Entertainment",
-      strength: 1.3,
-      description:
-        "Transitions from educational videos to lighter entertainment, suggesting a reward mechanism or a need for a break from learning.",
+      strength: 0.26,
+      description: "Break from learning, seeking reward.",
     },
     {
       from: "Entertainment",
       to: "Film & Animation",
-      strength: 1.1,
-      description: "Transitions from general entertainment to more specific animated film content/recaps.",
+      strength: 0.22,
+      description: "Specific interest in films/animation.",
     },
     {
       from: "Gaming",
       to: "People & Blogs",
-      strength: 0.4,
-      description: "Frequent transitions from gaming-related content to vlogs or personal stories",
+      strength: 0.08,
+      description: "Shift from gaming to vlogs.",
+    },
+    {
+      from: "Science & Technology",
+      to: "Entertainment",
+      strength: 0.15,
+      description: "Relaxing after tech content.",
+    },
+    {
+      from: "Music",
+      to: "People & Blogs",
+      strength: 0.11,
+      description: "Shift from music to personal stories.",
+    },
+    {
+      from: "Education",
+      to: "Gaming",
+      strength: 0.05,
+      description: "Taking a gaming break after studying.",
     },
   ],
   psychologicalPatterns: [
@@ -314,18 +329,21 @@ const prepareFormatData = (formatDistribution) => {
 const YouTubeInsightsDashboard = () => {
   const [activeSection, setActiveSection] = useState("upload")
   const [darkMode, setDarkMode] = useState(false)
-  const [files, setFiles] = useState({
+  const [files, setFiles] = useState<{ history: File | null }>({
     history: null,
   })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisError, setAnalysisError] = useState(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [analysisData, setAnalysisData] = useState(analyticsData)
-  const fileInputRef = useRef(null)
+  const [nonDistractingCategories, setNonDistractingCategories] = useState<Set<string>>(
+    new Set(["Education", "Science & Technology"])
+  )
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Prepare data
-  const treemapData = prepareTreemapData(analysisData.categories)
-  const radarData = prepareRadarData(analysisData.psychologicalPatterns)
-  const formatData = prepareFormatData(analysisData.formatDistribution)
+  const treemapData = useMemo(() => prepareTreemapData(analysisData.categories), [analysisData.categories])
+  const radarData = useMemo(() => prepareRadarData(analysisData.psychologicalPatterns), [analysisData.psychologicalPatterns])
+  const formatData = useMemo(() => prepareFormatData(analysisData.formatDistribution), [analysisData.formatDistribution])
 
   // Navigation items
   const navItems = [
@@ -337,37 +355,37 @@ const YouTubeInsightsDashboard = () => {
   ]
 
   // Handle file selection
-  const handleFileChange = useCallback((e) => {
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setFiles({ history: e.target.files[0] })
     }
   }, [])
 
   // Handle file drop
-  const handleDrop = useCallback((e) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files)
-
       // Only look for JSON files (history files)
-      droppedFiles.forEach((file) => {
-        if (file.name.endsWith(".json")) {
-          setFiles({ history: file })
-        }
-      })
+      const jsonFile = droppedFiles.find(file => file.name.endsWith(".json"))
+      if (jsonFile) {
+        setFiles({ history: jsonFile })
+      }
     }
   }, [])
 
   // Handle drag events
-  const handleDragOver = useCallback((e) => {
+  const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.stopPropagation()
   }, [])
 
   // Handle analysis submission
   const handleAnalyze = useCallback(async () => {
+    if (!files.history) return
+
     setIsAnalyzing(true)
     setAnalysisError(null)
 
@@ -381,7 +399,8 @@ const YouTubeInsightsDashboard = () => {
       })
 
       if (!response.ok) {
-        throw new Error(`HTTP error! Status: ${response.status}`)
+        const errorText = await response.text()
+        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`)
       }
 
       const data = await response.json()
@@ -389,23 +408,74 @@ const YouTubeInsightsDashboard = () => {
       setActiveSection("overview")
     } catch (error) {
       console.error("Analysis failed:", error)
-      setAnalysisError(`Analysis failed: ${error.message}`)
+      setAnalysisError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`)
     } finally {
       setIsAnalyzing(false)
     }
   }, [files.history])
 
   // Handle browse button click
-  const handleBrowseClick = useCallback((inputRef) => {
-    if (inputRef.current) {
-      inputRef.current.click()
+  const handleBrowseClick = useCallback(() => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click()
     }
   }, [])
 
   // Skip to demo
   const handleSkipToDemo = useCallback(() => {
+    setAnalysisData(analyticsData)
     setActiveSection("overview")
   }, [])
+
+  // Handler for category selection checkboxes
+  const handleCategorySelectionChange = useCallback((categoryName: string, isSelected: boolean) => {
+    setNonDistractingCategories(prev => {
+      const newSet = new Set(prev)
+      if (isSelected) {
+        newSet.add(categoryName)
+      } else {
+        newSet.delete(categoryName)
+      }
+      return newSet
+    })
+  }, [])
+
+  // Memoize the filtered transitions to avoid recalculating on every render
+  const filteredTransitions = useMemo(() => {
+    // If no categories are selected as productive, show all transitions
+    if (nonDistractingCategories.size === 0) {
+      return analysisData.categoryTransitions
+    }
+    // Otherwise, filter to show only transitions originating from the selected productive categories
+    return analysisData.categoryTransitions.filter(transition =>
+      nonDistractingCategories.has(transition.from)
+    )
+  }, [analysisData.categoryTransitions, nonDistractingCategories])
+
+  // Function to export all data with filtered transitions to extension-output.json
+  const exportFilteredTransitions = useCallback(() => {
+    // Filter the transitions
+    const filteredTransitions = analysisData.categoryTransitions.filter(transition =>
+      nonDistractingCategories.has(transition.from)
+    );
+
+    // Create a new object with all data and filtered transitions
+    const dataToExport = {
+      ...analysisData,
+      categoryTransitions: filteredTransitions,
+    };
+
+    // Convert to JSON and save as a file
+    const dataToExportString = JSON.stringify(dataToExport, null, 2);
+    const blob = new Blob([dataToExportString], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "extension-output.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [analysisData, nonDistractingCategories]);
 
   return (
     <div
@@ -557,7 +627,7 @@ const YouTubeInsightsDashboard = () => {
                   <div className="flex flex-col sm:flex-row gap-4 w-full max-w-md">
                     <button
                       type="button"
-                      onClick={() => handleBrowseClick(fileInputRef)}
+                      onClick={() => handleBrowseClick()}
                       className={cn(
                         "px-4 py-2 rounded-md text-sm font-medium flex-1 flex items-center justify-center",
                         files.history
@@ -798,39 +868,42 @@ const YouTubeInsightsDashboard = () => {
 
             {/* Top Categories and Topics */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* MODIFIED: Top Categories List with Selection */}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4 }}
                 className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
               >
-                <h2 className="text-xl font-bold mb-4">Top Categories</h2>
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={analysisData.categories.slice(0, 7)}
-                      layout="vertical"
-                      margin={{ top: 5, right: 30, left: 100, bottom: 5 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? "#555" : "#eee"} />
-                      <XAxis
-                        type="number"
-                        domain={[0, "dataMax"]}
-                        tickFormatter={(value) => `${value}%`}
-                        stroke={darkMode ? "#aaa" : "#666"}
-                      />
-                      <YAxis type="category" dataKey="name" width={100} stroke={darkMode ? "#aaa" : "#666"} />
-                      <Tooltip content={<CustomTooltip />} />
-                      <Bar dataKey="percentage" radius={[0, 4, 4, 0]}>
-                        {analysisData.categories.slice(0, 7).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS.chartColors[index % COLORS.chartColors.length]} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <h2 className="text-xl font-bold mb-4">Top Categories & Selection</h2>
+                <p className={cn("text-sm mb-4", darkMode ? "text-gray-400" : "text-gray-600")}>
+                   Select categories you consider productive or non-distracting. Transitions *away* from these will be shown in the 'Categories' tab.
+                </p>
+                 <div className="space-y-3 max-h-80 overflow-y-auto pr-2"> {/* Allow scrolling if many categories */}
+                   {(analysisData.categories || []).slice(0, 10).map((category, index) => ( // Limit displayed categories or use all
+                     <div key={category.name} className="flex items-center justify-between gap-2"> {/* Use name as key */}
+                       <label className="flex items-center cursor-pointer flex-grow min-w-0 mr-2"> {/* Ensure label can shrink */}
+                         <input
+                           type="checkbox"
+                           className="mr-3 h-4 w-4 rounded border-gray-300 dark:border-gray-600 text-red-600 focus:ring-red-500 dark:bg-gray-700 dark:ring-offset-gray-800 flex-shrink-0" // Style checkbox
+                           checked={nonDistractingCategories.has(category.name)}
+                           onChange={(e) => handleCategorySelectionChange(category.name, e.target.checked)}
+                         />
+                         <div
+                            className="w-3 h-3 rounded-full mr-2 flex-shrink-0"
+                            style={{ backgroundColor: COLORS.chartColors[index % COLORS.chartColors.length] }}
+                          ></div>
+                         <span className="flex-1 truncate" title={category.name}>{category.name}</span>
+                       </label>
+                       <span className={cn("font-semibold text-sm flex-shrink-0", darkMode ? "text-gray-300" : "text-gray-700")}>
+                         {category.percentage?.toFixed(1)}% {/* Ensure percentage exists */}
+                       </span>
+                     </div>
+                   ))}
+                 </div>
               </motion.div>
 
+               {/* Dominant Topics Area Chart */}
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -855,8 +928,9 @@ const YouTubeInsightsDashboard = () => {
                         height={70}
                         stroke={darkMode ? "#aaa" : "#666"}
                         tick={{ fontSize: 10 }}
+                        interval={0} // Ensure all labels are attempted
                       />
-                      <YAxis tickFormatter={(value) => `${value}%`} stroke={darkMode ? "#aaa" : "#666"} />
+                      <YAxis tickFormatter={(value) => `${value?.toFixed(1)}%`} stroke={darkMode ? "#aaa" : "#666"} />
                       <Tooltip content={<CustomTooltip />} />
                       <Area
                         type="monotone"
@@ -933,146 +1007,125 @@ const YouTubeInsightsDashboard = () => {
               </div>
             </motion.div>
 
+            {/* Category Transitions Table */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
               className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
             >
-              <h2 className="text-xl font-bold mb-4">Category Transitions</h2>
+              <h2 className="text-xl font-bold mb-4">
+                {nonDistractingCategories.size > 0
+                  ? "Category Transitions Away From Selected Productive Categories"
+                  : "All Identified Category Transitions"} {/* Dynamic Title */}
+              </h2>
+               <p className={cn("text-sm mb-4", darkMode ? "text-gray-400" : "text-gray-600")}>
+                 {nonDistractingCategories.size > 0
+                   ? "Showing transitions originating from categories selected as productive/non-distracting in the Overview section."
+                   : "Showing all detected category transitions. Select productive categories in the Overview tab to filter this view."} {/* Dynamic Description */}
+                  Strength indicates the relative frequency of the transition (0-1).
+               </p>
               <div className="overflow-x-auto">
                 <table className={cn("min-w-full divide-y", darkMode ? "divide-gray-700" : "divide-gray-200")}>
-                  <thead>
-                    <tr>
-                      <th
-                        className={cn(
-                          "px-6 py-3 text-left text-xs font-medium uppercase tracking-wider",
-                          darkMode ? "text-gray-400" : "text-gray-500",
-                        )}
-                      >
-                        From
-                      </th>
-                      <th
-                        className={cn(
-                          "px-6 py-3 text-left text-xs font-medium uppercase tracking-wider",
-                          darkMode ? "text-gray-400" : "text-gray-500",
-                        )}
-                      >
-                        To
-                      </th>
-                      <th
-                        className={cn(
-                          "px-6 py-3 text-left text-xs font-medium uppercase tracking-wider",
-                          darkMode ? "text-gray-400" : "text-gray-500",
-                        )}
-                      >
-                        Strength
-                      </th>
-                      <th
-                        className={cn(
-                          "px-6 py-3 text-left text-xs font-medium uppercase tracking-wider",
-                          darkMode ? "text-gray-400" : "text-gray-500",
-                        )}
-                      >
-                        Description
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={cn("divide-y", darkMode ? "divide-gray-700" : "divide-gray-200")}>
-                    {analysisData.categoryTransitions.map((transition, index) => (
-                      <tr key={index} className={index % 2 === 0 ? (darkMode ? "bg-gray-700" : "bg-gray-50") : ""}>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{transition.from}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">{transition.to}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={cn("w-full h-2 rounded-full", darkMode ? "bg-gray-600" : "bg-gray-200")}>
-                              <div
-                                className="h-2 rounded-full bg-red-500"
-                                style={{ width: `${transition.strength * 30}%` }}
-                              ></div>
-                            </div>
-                            <span className="ml-2 text-sm">{transition.strength}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-sm">{transition.description}</td>
-                      </tr>
-                    ))}
+                   {/* Table Headers */}
+                   <thead>
+                     <tr>
+                       <th className={cn("px-6 py-3 text-left text-xs font-medium uppercase tracking-wider", darkMode ? "text-gray-400" : "text-gray-500")}>
+                           {nonDistractingCategories.size > 0 ? "From (Productive)" : "From Category"} {/* Dynamic Header */}
+                       </th>
+                       <th className={cn("px-6 py-3 text-left text-xs font-medium uppercase tracking-wider", darkMode ? "text-gray-400" : "text-gray-500")}>
+                           {nonDistractingCategories.size > 0 ? "To (Distraction)" : "To Category"} {/* Dynamic Header */}
+                        </th>
+                       <th className={cn("px-6 py-3 text-left text-xs font-medium uppercase tracking-wider", darkMode ? "text-gray-400" : "text-gray-500")}>Strength (0-1)</th>
+                       <th className={cn("px-6 py-3 text-left text-xs font-medium uppercase tracking-wider", darkMode ? "text-gray-400" : "text-gray-500")}>Description</th>
+                     </tr>
+                   </thead>
+                   <tbody className={cn("divide-y", darkMode ? "divide-gray-700" : "divide-gray-200")}>
+                    {filteredTransitions.length > 0 ? (
+                       filteredTransitions.map((transition, index) => (
+                         <tr key={`${transition.from}-${transition.to}-${index}`} className={index % 2 === 0 ? (darkMode ? "bg-gray-700" : "bg-gray-50") : ""}>
+                           <td className={`px-6 py-4 whitespace-nowrap text-sm ${nonDistractingCategories.has(transition.from) ? 'font-medium' : ''}`}>{transition.from}</td>
+                           <td className="px-6 py-4 whitespace-nowrap text-sm">{transition.to}</td>
+                           <td className="px-6 py-4 whitespace-nowrap">
+                             <div className="flex items-center">
+                               <div className={cn("w-20 h-2 rounded-full mr-2", darkMode ? "bg-gray-600" : "bg-gray-200")}>
+                                 <div
+                                   className="h-2 rounded-full bg-gradient-to-r from-yellow-400 to-red-600"
+                                   style={{ width: `${transition.strength * 100}%` }}
+                                 ></div>
+                               </div>
+                               <span className="ml-2 text-sm w-10 text-right">{transition.strength?.toFixed(2) ?? 'N/A'}</span>
+                             </div>
+                           </td>
+                           <td className="px-6 py-4 text-sm min-w-[200px]">{transition.description}</td>
+                         </tr>
+                       ))
+                    ) : (
+                       <tr>
+                          <td colSpan={4} className="text-center py-6 text-sm text-gray-500 dark:text-gray-400">
+                             {analysisData.categoryTransitions?.length > 0
+                               ? "No transitions matched your current filter."
+                               : "No category transitions were identified in the analysis."}
+                          </td>
+                       </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
             </motion.div>
 
+             {/* Comparison Lists (Top Categories / Dominant Topics) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
-              >
-                <h2 className="text-xl font-bold mb-4">Top Categories</h2>
-                <ul className="space-y-3">
-                  {analysisData.categories.slice(0, 8).map((category, index) => (
-                    <li key={index} className="flex items-center">
-                      <div
-                        className="w-3 h-3 rounded-full mr-3"
-                        style={{ backgroundColor: COLORS.chartColors[index % COLORS.chartColors.length] }}
-                      ></div>
-                      <span className="flex-1">{category.name}</span>
-                      <span className={cn("font-semibold", darkMode ? "text-gray-300" : "text-gray-700")}>
-                        {category.percentage}%
-                      </span>
-                      <div className="w-1/3 ml-4">
-                        <div className={cn("w-full h-2 rounded-full", darkMode ? "bg-gray-700" : "bg-gray-200")}>
-                          <div
-                            className="h-2 rounded-full"
-                            style={{
-                              width: `${category.percentage * 3}%`,
-                              backgroundColor: COLORS.chartColors[index % COLORS.chartColors.length],
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
+               <motion.div
+                 initial={{ opacity: 0, x: -20 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 transition={{ duration: 0.5 }}
+                 className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
+               >
+                 <h2 className="text-xl font-bold mb-4">All Top Categories (Recap)</h2>
+                 <ul className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                   {(analysisData.categories || []).slice(0, 8).map((category, index) => (
+                     <li key={category.name} className="flex items-center"> {/* Use name as key */}
+                       <div
+                         className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                         style={{ backgroundColor: COLORS.chartColors[index % COLORS.chartColors.length] }}
+                       ></div>
+                       <span className="flex-1 truncate" title={category.name}>{category.name}</span>
+                       <span className={cn("font-semibold ml-2", darkMode ? "text-gray-300" : "text-gray-700")}>
+                         {category.percentage?.toFixed(1)}%
+                       </span>
+                       {/* Optional: Add back the small bar if desired */}
+                       {/* <div className="w-1/3 ml-4"> ... </div> */}
+                     </li>
+                   ))}
+                 </ul>
+               </motion.div>
 
-              <motion.div
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.5 }}
-                className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
-              >
-                <h2 className="text-xl font-bold mb-4">Dominant Topics</h2>
-                <ul className="space-y-3">
-                  {analysisData.dominantTopics.map((topic, index) => (
-                    <li key={index} className="flex items-center">
-                      <div
-                        className="w-3 h-3 rounded-full mr-3"
-                        style={{ backgroundColor: COLORS.chartColors[(index + 8) % COLORS.chartColors.length] }}
-                      ></div>
-                      <span className="flex-1 truncate" title={topic.name}>
-                        {topic.name}
-                      </span>
-                      <span className={cn("font-semibold", darkMode ? "text-gray-300" : "text-gray-700")}>
-                        {topic.percentage}%
-                      </span>
-                      <div className="w-1/3 ml-4">
-                        <div className={cn("w-full h-2 rounded-full", darkMode ? "bg-gray-700" : "bg-gray-200")}>
-                          <div
-                            className="h-2 rounded-full"
-                            style={{
-                              width: `${topic.percentage * 2.5}%`,
-                              backgroundColor: COLORS.chartColors[(index + 8) % COLORS.chartColors.length],
-                            }}
-                          ></div>
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </motion.div>
-            </div>
+               <motion.div
+                 initial={{ opacity: 0, x: 20 }}
+                 animate={{ opacity: 1, x: 0 }}
+                 transition={{ duration: 0.5 }}
+                 className={cn("rounded-xl shadow-lg p-6", darkMode ? "bg-gray-800" : "bg-white")}
+               >
+                 <h2 className="text-xl font-bold mb-4">All Dominant Topics (Recap)</h2>
+                 <ul className="space-y-3 max-h-80 overflow-y-auto pr-2">
+                   {(analysisData.dominantTopics || []).map((topic, index) => (
+                     <li key={topic.name} className="flex items-center"> {/* Use name as key */}
+                       <div
+                         className="w-3 h-3 rounded-full mr-3 flex-shrink-0"
+                         style={{ backgroundColor: COLORS.chartColors[(index + 8) % COLORS.chartColors.length] }}
+                       ></div>
+                       <span className="flex-1 truncate" title={topic.name}>{topic.name}</span>
+                       <span className={cn("font-semibold ml-2", darkMode ? "text-gray-300" : "text-gray-700")}>
+                         {topic.percentage?.toFixed(1)}%
+                       </span>
+                        {/* Optional: Add back the small bar if desired */}
+                       {/* <div className="w-1/3 ml-4"> ... </div> */}
+                     </li>
+                   ))}
+                 </ul>
+               </motion.div>
+             </div>
           </div>
         )}
 
@@ -1246,6 +1299,14 @@ const YouTubeInsightsDashboard = () => {
           </p>
         </div>
       </footer>
+
+      {/* Add a button to trigger the export */}
+      <button
+        onClick={exportFilteredTransitions}
+        className="px-4 py-2 bg-blue-500 text-white rounded-md"
+      >
+        Export Data for Extension
+      </button>
     </div>
   )
 }
