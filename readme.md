@@ -57,4 +57,27 @@ The application consists of:
     *   `npm` or `yarn` (Package Management)
     *   `dotenv` (Environment Variables)
 
-## Project Structure
+## Usage
+
+1.  **Obtain your YouTube Watch History:**
+    *   Go to Google Takeout: [https://takeout.google.com/](https://takeout.google.com/)
+    *   Deselect all products.
+    *   Select "YouTube and YouTube Music".
+    *   Click "All YouTube data included" and deselect all except "history".
+    *   Choose "JSON" as the format for watch history.
+    *   Complete the export process and download the `.zip` file.
+    *   Extract the `.zip` file. Find the `watch-history.json` file located in the `Takeout/YouTube and YouTube Music/history/` directory.
+2.  **Upload the History File:**
+    *   Open the application in your browser (`http://localhost:3000`).
+    *   Drag and drop your `watch-history.json` file onto the designated area or use the file selector.
+3.  **View Analysis:**
+    *   The application will upload the file to the backend, which then triggers the AI analysis.
+    *   Wait for the analysis to complete (this may take some time depending on the size of your history and API response times).
+    *   Once finished, the dashboard will populate with charts, insights, and recommendations based on your viewing data. Explore the different sections (Overview, Categories, Psychology, Recommendations).
+
+## Important Notes
+
+*   **Data Privacy:** Your `watch-history.json` is uploaded to the backend server for processing but should not be stored permanently if configured correctly. Ensure `uploads/` and `output/` are in your `.gitignore`. The analysis happens server-side.
+*   **API Key:** A valid Google Gemini API key with sufficient quota is required for the analysis engine to function. Keep your API key secure and do not commit it to version control.
+*   **AI Accuracy:** The analysis quality depends heavily on the Gemini model's interpretation based on the provided prompt and data. Results are insightful but should be viewed as interpretations rather than definitive facts. The `jsonrepair` library is used to handle potential formatting inconsistencies from the AI.
+*   **History File Size:** Very large history files might take longer to process or potentially hit API limits or server timeouts. The analysis is batched ([`youtube-history-analyzer.js`](e%3A%5Cminor_project_2%5Cdraft_1%5Cyoutube-history-analyzer.js)) to mitigate this, but limitations may still exist.
