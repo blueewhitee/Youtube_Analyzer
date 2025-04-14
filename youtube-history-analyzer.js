@@ -7,6 +7,17 @@ const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
 require('dotenv').config();
+const memoize = require('lodash/memoize');
+
+// Load the system prompt once when the module loads
+let DEFAULT_SYSTEM_PROMPT;
+try {
+  DEFAULT_SYSTEM_PROMPT = fs.readFileSync(path.join(__dirname, 'master_prompt.txt'), 'utf8');
+  console.log("Master prompt loaded successfully");
+} catch (error) {
+  console.log("Error reading master prompt, using backup default");
+  DEFAULT_SYSTEM_PROMPT = `Your detailed fallback system prompt content here...`;
+}
 
 // Configuration
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDMj3e__UMwBi8Ps4tbl9pTT18tqbw6VFc";
@@ -15,7 +26,7 @@ const currentOutputDir = path.join(__dirname, 'output'); // Current directory
 const windowsOutputDir = path.join(__dirname, 'public', 'output'); // Windows directory
 
 // Main function to analyze YouTube history
-async function analyzeYouTubeHistory(historyFilePath, systemPromptPath, videoCategoriesPath) {
+async function analyzeYouTubeHistory(historyFilePath, videoCategoriesPath) {
   console.log("Starting YouTube history analysis...");
   
   try {
@@ -23,9 +34,9 @@ async function analyzeYouTubeHistory(historyFilePath, systemPromptPath, videoCat
     console.log(`Reading watch history from: ${historyFilePath}`);
     const content = JSON.parse(fs.readFileSync(historyFilePath, 'utf8'));
     
-    // Read the system prompt
-    console.log(`Reading system prompt from: ${systemPromptPath}`);
-    const systemPrompt = fs.readFileSync(systemPromptPath, 'utf8');
+    // Use the default system prompt
+    console.log("Using default system prompt");
+    const systemPrompt = DEFAULT_SYSTEM_PROMPT;
     
     // Read video categories
     console.log(`Reading video categories from: ${videoCategoriesPath}`);
@@ -229,7 +240,7 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT. ENSURE YOUR RESPONSE CAN BE DIR
 // Call the Gemini API
 async function callGeminiAPI(apiKey, prompt) {
   console.log("Calling Gemini API...");
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-01-21:generateContent?key=${apiKey}`;
   
   const headers = {
     'Content-Type': 'application/json'
@@ -450,22 +461,25 @@ function validateAndProcessRawData(data, totalVideos) {
   try {
     const validated = JSON.parse(JSON.stringify(data));
 
-    // Process category transitions - remove same-to-same and normalize strength to 0-5
+    // Process category transitions - remove same-to-same and normalize strength to 0-1
     if (validated.categoryTransitions && Array.isArray(validated.categoryTransitions)) {
       validated.categoryTransitions = validated.categoryTransitions
         .filter(transition => transition.from !== transition.to) // Remove same-to-same transitions
         .map(transition => {
-          // Normalize strength to 0-5 range
           let strength = parseFloat(transition.strength) || 0;
           
-          // Convert from percentage if > 1
-          if (strength > 5) strength = strength / 2;
-          
-          // Convert from 0-1 range to 0-5
-          if (strength <= 1) strength = strength * 5;
-          
-          // Clamp to 0-5 range
-          strength = Math.min(5, Math.max(0, strength));
+          // Normalize strength to 0-1 range based on potential input scale
+          if (strength > 1 && strength <= 5) {
+              // If strength is likely in the 1-5 range (based on previous logic), scale it down
+              strength = strength / 5;
+          } else if (strength > 5) {
+              // If strength is likely a percentage (or >5), scale it assuming max 100
+               strength = strength / 100;
+          }
+          // If strength was already <= 1, it doesn't need scaling down, just clamping.
+
+          // Clamp to 0-1 range
+          strength = Math.min(1, Math.max(0, strength)); // Ensures strength is between 0 and 1
           
           return {
             ...transition,
@@ -612,17 +626,16 @@ module.exports = {
 if (require.main === module) {
   // Check for command line arguments
   const args = process.argv.slice(2);
-  if (args.length < 2) {
-    console.log("Usage: node youtube-history-analyzer.js <history-file-path> <system-prompt-path>");
+  if (args.length < 1) {
+    console.log("Usage: node youtube-history-analyzer.js <history-file-path>");
     process.exit(1);
   }
   
   const historyFilePath = args[0];
-  const systemPromptPath = args[1];
   const videoCategoriesPath = path.join(__dirname, 'videoCategories.json'); // Default path
   
-  // Run the analysis
-  analyzeYouTubeHistory(historyFilePath, systemPromptPath, videoCategoriesPath)
+  // Run the analysis with hardcoded prompt
+  analyzeYouTubeHistory(historyFilePath, videoCategoriesPath)
     .then(result => {
       console.log("Analysis complete!");
       // Save files to the output directory
@@ -632,4 +645,5 @@ if (require.main === module) {
     })
     .catch(error => {
       console.error("Analysis failed:", error);
-    })};
+    });
+}
