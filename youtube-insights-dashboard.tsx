@@ -25,6 +25,7 @@ import {
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
 import React from "react"
+import { processWatchHistory } from "@/components/youtube-preprocessor"
 
 // Mock data
 const analyticsData = {
@@ -301,49 +302,124 @@ const CustomTooltip = ({ active, payload, label }) => {
 
 // Prepare data for treemap
 const prepareTreemapData = (categories) => {
+  if (!categories || !Array.isArray(categories)) return []
+  
   return categories.map((category) => ({
-    name: category.name,
-    size: category.percentage,
-    value: category.percentage,
+    name: category.name || "Unknown",
+    size: category.percentage || 0,
+    value: category.percentage || 0,
   }))
 }
 
 // Prepare data for radar chart
 const prepareRadarData = (patterns) => {
+  if (!patterns || !Array.isArray(patterns)) return []
+  
   return patterns.map((pattern) => ({
-    subject: pattern.title.split("/")[0],
-    value: pattern.evidenceStrength * 10,
+    subject: pattern.title ? pattern.title.split("/")[0] : "Unknown",
+    value: pattern.evidenceStrength ? pattern.evidenceStrength * 10 : 0,
     fullMark: 10,
   }))
 }
 
 // Prepare data for format distribution
 const prepareFormatData = (formatDistribution) => {
+  if (!formatDistribution) return [
+    { name: "Short Form", value: 0 },
+    { name: "Long Form", value: 0 },
+  ]
+  
   return [
-    { name: "Short Form", value: formatDistribution.shortForm },
-    { name: "Long Form", value: formatDistribution.longForm },
+    { name: "Short Form", value: formatDistribution.shortForm || 0 },
+    { name: "Long Form", value: formatDistribution.longForm || 0 },
   ]
 }
 
 // Replace the existing YouTubeInsightsDashboard component with this updated version
 const YouTubeInsightsDashboard = () => {
+  // File upload references and state
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [files, setFiles] = useState<{ history: File | null }>({ history: null })
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
+  const [analysisData, setAnalysisData] = useState(null)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState("upload")
   const [darkMode, setDarkMode] = useState(false)
-  const [files, setFiles] = useState<{ history: File | null }>({
-    history: null,
-  })
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisError, setAnalysisError] = useState<string | null>(null)
-  const [analysisData, setAnalysisData] = useState(analyticsData)
-  const [nonDistractingCategories, setNonDistractingCategories] = useState<Set<string>>(
-    new Set(["Education", "Science & Technology"])
-  )
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [nonDistractingCategories, setNonDistractingCategories] = useState<Set<string>>(new Set())
+  const [transitionalProbabilityThreshold, setTransitionalProbabilityThreshold] = useState<number>(0.5)
 
-  // Prepare data
-  const treemapData = useMemo(() => prepareTreemapData(analysisData.categories), [analysisData.categories])
-  const radarData = useMemo(() => prepareRadarData(analysisData.psychologicalPatterns), [analysisData.psychologicalPatterns])
-  const formatData = useMemo(() => prepareFormatData(analysisData.formatDistribution), [analysisData.formatDistribution])
+  // New state for preprocessing options
+  const [apiKey, setApiKey] = useState<string>("AIzaSyDMj3e__UMwBi8Ps4tbl9pTT18tqbw6VFc") // Pre-filled API key
+  const [useLocalProcessing, setUseLocalProcessing] = useState<boolean>(true)
+  const [processingStatus, setProcessingStatus] = useState<string>("")
+  const [processingMonths, setProcessingMonths] = useState<number>(1)
+
+  // No need to load API key from localStorage since we have it hardcoded
+
+  // Prepare data with null checks
+  const treemapData = useMemo(() => 
+    analysisData && analysisData.categories ? prepareTreemapData(analysisData.categories) : [], 
+    [analysisData?.categories]
+  )
+  const radarData = useMemo(() => 
+    analysisData && analysisData.psychologicalPatterns ? prepareRadarData(analysisData.psychologicalPatterns) : [], 
+    [analysisData?.psychologicalPatterns]
+  )
+  const formatData = useMemo(() => 
+    analysisData && analysisData.formatDistribution ? prepareFormatData(analysisData.formatDistribution) : [], 
+    [analysisData?.formatDistribution]
+  )
+
+  // Handle direct local processing of YouTube history
+  const handleLocalProcessing = useCallback(async () => {
+    if (!files.history) return;
+    
+    setIsAnalyzing(true);
+    setProcessingStatus("Reading your watch history file...");
+    setAnalysisError(null);
+    
+    try {
+      // Read file content
+      const fileContent = await files.history.text();
+      const watchHistory = JSON.parse(fileContent);
+      console.log("Watch history read:", watchHistory.length, "entries"); // Added log
+      
+      setProcessingStatus(`Processing ${watchHistory.length} history entries...`);
+      
+      // Process watch history locally using our preprocessor
+      const months = processingMonths === 0 ? 120 : processingMonths; // 0 means "All time" - we use 10 years as a reasonable max
+      const processedData = await processWatchHistory(watchHistory, apiKey, months); // Use the apiKey state variable instead of null
+      console.log("Data after client-side preprocessing:", processedData.length, "entries", processedData); // Added log
+      
+      setProcessingStatus(`Processed ${processedData.length} YouTube videos. Sending for analysis...`);
+      
+      // Send the preprocessed data to the server for AI analysis
+      const response = await fetch("/analyze-preprocessed", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ processedData }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+      }
+      
+      const data = await response.json();
+      console.log("Data received from server after analysis:", data); // Added log
+      setAnalysisData(data.dashboardData);
+      setActiveSection("overview");
+      setProcessingStatus("");
+    } catch (error) {
+      console.error("Analysis failed:", error);
+      setAnalysisError(`Analysis failed: ${error instanceof Error ? error.message : String(error)}`);
+      setProcessingStatus("");
+    } finally {
+      setIsAnalyzing(false);
+    }
+  }, [files.history, processingMonths, apiKey]);
 
   // Navigation items
   const navItems = [
@@ -442,18 +518,27 @@ const YouTubeInsightsDashboard = () => {
 
   // Memoize the filtered transitions to avoid recalculating on every render
   const filteredTransitions = useMemo(() => {
+    // Add a null check for analysisData and analysisData.categoryTransitions
+    if (!analysisData || !analysisData.categoryTransitions) {
+      return []; // Return an empty array if data is not available
+    }
     // If no categories are selected as productive, show all transitions
     if (nonDistractingCategories.size === 0) {
-      return analysisData.categoryTransitions
+      return analysisData.categoryTransitions;
     }
     // Otherwise, filter to show only transitions originating from the selected productive categories
     return analysisData.categoryTransitions.filter(transition =>
       nonDistractingCategories.has(transition.from)
-    )
-  }, [analysisData.categoryTransitions, nonDistractingCategories])
+    );
+  }, [analysisData, nonDistractingCategories]);
 
   // Function to export all data with filtered transitions to extension-output.json
   const exportFilteredTransitions = useCallback(() => {
+    // Add a null check for analysisData and analysisData.categoryTransitions
+    if (!analysisData || !analysisData.categoryTransitions) {
+      console.error("No analysis data available to export.");
+      return; // Do nothing if data is not available
+    }
     // Filter the transitions
     const filteredTransitions = analysisData.categoryTransitions.filter(transition =>
       nonDistractingCategories.has(transition.from)
@@ -584,6 +669,46 @@ const YouTubeInsightsDashboard = () => {
                 </p>
               </div>
 
+              {/* Preprocessing Options */}
+              <div className={cn("mb-6 p-4 rounded-lg", darkMode ? "bg-gray-700" : "bg-gray-50")}>
+                <h3 className="font-medium mb-3">Data Processing Options</h3>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="local-processing"
+                      checked={useLocalProcessing}
+                      onChange={(e) => setUseLocalProcessing(e.target.checked)}
+                      className={cn("mr-2", darkMode ? "accent-red-400" : "accent-red-500")}
+                    />
+                    <label htmlFor="local-processing" className="text-sm">
+                      Use direct preprocessing (recommended)
+                    </label>
+                  </div>
+                </div>
+                <div className="mt-2">
+                  <label className="text-sm flex items-center gap-2">
+                    <span>Time period to analyze:</span>
+                    <select
+                      value={processingMonths}
+                      onChange={(e) => setProcessingMonths(Number(e.target.value))}
+                      className={cn(
+                        "px-2 py-1 rounded border",
+                        darkMode
+                          ? "bg-gray-800 border-gray-600 text-white"
+                          : "bg-white border-gray-300"
+                      )}
+                    >
+                      <option value="1">Last month</option>
+                      <option value="3">Last 3 months</option>
+                      <option value="6">Last 6 months</option>
+                      <option value="12">Last year</option>
+                      <option value="0">All time</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
               <div
                 className={cn(
                   "border-2 border-dashed rounded-lg p-8 text-center mb-6",
@@ -665,7 +790,7 @@ const YouTubeInsightsDashboard = () => {
               {/* Analysis button */}
               <div className="flex justify-center mb-6">
                 <button
-                  onClick={handleAnalyze}
+                  onClick={useLocalProcessing ? handleLocalProcessing : handleAnalyze}
                   disabled={isAnalyzing || !files.history}
                   className={cn(
                     "px-6 py-3 rounded-md font-medium transition-colors flex items-center",
@@ -701,13 +826,28 @@ const YouTubeInsightsDashboard = () => {
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         ></path>
                       </svg>
-                      Analyzing...
+                      {useLocalProcessing ? "Processing..." : "Analyzing..."}
                     </>
                   ) : (
-                    "Analyze YouTube History"
+                    <>
+                      {useLocalProcessing ? "Preprocess & Analyze" : "Analyze YouTube History"}
+                    </>
                   )}
                 </button>
               </div>
+              
+              {/* Processing status */}
+              {processingStatus && (
+                <div className={cn("p-3 rounded-lg text-sm mb-6 text-center", darkMode ? "bg-gray-700" : "bg-blue-50")}>
+                  <div className="flex items-center justify-center">
+                    <svg className="animate-spin -ml-1 mr-3 h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>{processingStatus}</span>
+                  </div>
+                </div>
+              )}
 
               {/* Error message */}
               {analysisError && (
@@ -1288,25 +1428,17 @@ const YouTubeInsightsDashboard = () => {
       {/* Footer */}
       <footer
         className={cn(
-          "py-6 px-4 border-t",
-          darkMode ? "border-gray-700 bg-gray-800 text-gray-400" : "border-gray-200 bg-white text-gray-500",
+          "py-6 border-t",
+          darkMode ? "border-gray-700 bg-gray-800" : "border-gray-200 bg-gray-100",
         )}
       >
         <div className="container mx-auto text-center text-sm">
           <p>
-            YouTube Insights Dashboard • {analysisData.totalVideosAnalyzed.toLocaleString()} videos analyzed •{" "}
+            YouTube Insights Dashboard • {analysisData && analysisData.totalVideosAnalyzed ? analysisData.totalVideosAnalyzed.toLocaleString() : '0'} videos analyzed •{" "}
             {new Date().getFullYear()}
           </p>
         </div>
       </footer>
-
-      {/* Add a button to trigger the export */}
-      <button
-        onClick={exportFilteredTransitions}
-        className="px-4 py-2 bg-blue-500 text-white rounded-md"
-      >
-        Export Data for Extension
-      </button>
     </div>
   )
 }

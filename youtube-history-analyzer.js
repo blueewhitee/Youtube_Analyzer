@@ -20,7 +20,7 @@ try {
 }
 
 // Configuration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "AIzaSyDMj3e__UMwBi8Ps4tbl9pTT18tqbw6VFc";
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const BATCH_SIZE = 50;
 const currentOutputDir = path.join(__dirname, 'output'); // Current directory
 const windowsOutputDir = path.join(__dirname, 'public', 'output'); // Windows directory

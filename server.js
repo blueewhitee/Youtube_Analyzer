@@ -27,8 +27,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-nextApp.prepare().then(() => {
-  // Update your server-side upload handler
+nextApp.prepare().then(() => {  // Update your server-side upload handler
   app.post('/upload', upload.fields([
     { name: 'historyFile', maxCount: 1 }
   ]), async (req, res) => {
@@ -55,6 +54,50 @@ nextApp.prepare().then(() => {
       });
     } catch (error) {
       console.error("Error during analysis:", error);
+      return res.status(500).send(`Analysis failed: ${error.message}`);
+    }
+  });
+  
+  // Handle preprocessed data directly
+  app.post('/analyze-preprocessed', express.json({ limit: '50mb' }), async (req, res) => {
+    console.log("PREPROCESSED DATA ANALYSIS ENDPOINT CALLED");
+    
+    if (!req.body || !req.body.processedData) {
+      console.log("ERROR: Missing preprocessed data");
+      return res.status(400).send('Please provide preprocessed data.');
+    }
+    
+    // Save the preprocessed data to a temporary file
+    const preprocessedFilePath = path.join(__dirname, 'uploads', `preprocessed-${Date.now()}.json`);
+    const videoCategoriesPath = path.join(__dirname, 'videoCategories.json');
+    
+    try {
+      // Write the preprocessed data to a file
+      fs.writeFileSync(preprocessedFilePath, JSON.stringify(req.body.processedData));
+      console.log(`Preprocessed data written to ${preprocessedFilePath}`);
+      
+      console.log("Starting analysis with preprocessed data...");
+      // Call the analyzer with the preprocessed data
+      const result = await analyzeYouTubeHistory(preprocessedFilePath, videoCategoriesPath);
+      console.log("Analysis complete, sending response");
+      
+      // Optionally clean up the temporary file
+      fs.unlinkSync(preprocessedFilePath);
+      
+      return res.json({
+        dashboardData: result.dashboardData,
+        rawAnalysis: result.rawAnalysis
+      });
+    } catch (error) {
+      console.error("Error during analysis of preprocessed data:", error);
+      // Try to clean up the temp file if it exists
+      if (fs.existsSync(preprocessedFilePath)) {
+        try {
+          fs.unlinkSync(preprocessedFilePath);
+        } catch (unlinkError) {
+          console.error("Error deleting temporary file:", unlinkError);
+        }
+      }
       return res.status(500).send(`Analysis failed: ${error.message}`);
     }
   });
