@@ -20,12 +20,12 @@ try {
 }
 
 // Configuration
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const BATCH_SIZE = 50;
 
 // Debug: Check if API key is loaded
-console.log("GEMINI_API_KEY loaded:", GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : "NOT FOUND");
+console.log("OPENROUTER_API_KEY loaded:", OPENROUTER_API_KEY ? `${OPENROUTER_API_KEY.substring(0, 10)}...` : "NOT FOUND");
 const currentOutputDir = path.join(__dirname, 'output'); // Current directory
 const windowsOutputDir = path.join(__dirname, 'public', 'output'); // Windows directory
 
@@ -63,7 +63,7 @@ async function analyzeYouTubeHistory(historyFilePath, videoCategoriesPath) {
     });
     
     // Analyze all data in batches
-    const completeAnalysis = await analyzeAllData(content, systemPrompt, GEMINI_API_KEY, BATCH_SIZE);
+    const completeAnalysis = await analyzeAllData(content, systemPrompt, OPENROUTER_API_KEY, BATCH_SIZE);
     
     // Parse the analysis to extract structured data for the dashboard
     const parseResult = parseLLMOutputForDashboard(completeAnalysis, titles.length, uniqueTitles.size);
@@ -176,7 +176,7 @@ Do not include any text outside the JSON object. Ensure all keys and values matc
     
     // Make API call for this batch
     try {
-      const batchResult = await callGeminiAPI(apiKey, batchPrompt);
+      const batchResult = await callOpenRouterAPI(apiKey, batchPrompt);
       allResults.push(batchResult);
     } catch (error) {
       console.error(`Error processing batch ${Math.floor(i/batchSize) + 1}:`, error);
@@ -234,64 +234,50 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT. ENSURE YOUR RESPONSE CAN BE DIR
   
   // Make final API call
   try {
-    return await callGeminiAPI(apiKey, finalPrompt);
+    return await callOpenRouterAPI(apiKey, finalPrompt);
   } catch (error) {
     console.error("Error generating final analysis:", error);
     return "Error generating final analysis";
   }
 }
 
-// Call the Gemini API
-async function callGeminiAPI(apiKey, prompt) {
-  console.log("Calling Gemini API...");
+// Call the OpenRouter API with DeepSeek R1 model
+async function callOpenRouterAPI(apiKey, prompt) {
+  console.log("Calling OpenRouter API with DeepSeek R1...");
   console.log("API Key check:", apiKey ? `${apiKey.substring(0, 10)}...` : "API KEY IS NULL/UNDEFINED");
   
   // Check if API key exists
   if (!apiKey) {
-    throw new Error("API key is missing. Please check your .env.local file and ensure GEMINI_API_KEY is set.");
+    throw new Error("API key is missing. Please check your .env.local file and ensure OPENROUTER_API_KEY is set.");
   }
   
-  // Use Gemini 2.5 Pro as requested
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
+  // Use OpenRouter endpoint with DeepSeek R1 thinking model
+  const openRouterUrl = `https://openrouter.ai/api/v1/chat/completions`;
   
   const headers = {
     'Content-Type': 'application/json',
-    'x-goog-api-key': apiKey
+    'Authorization': `Bearer ${apiKey}`,
+    'HTTP-Referer': 'http://localhost:3001', // Optional: for usage tracking
+    'X-Title': 'YouTube History Analyzer' // Optional: for usage tracking
   };
   
   const payload = {
-    "contents": [{
-      "parts":[{"text": prompt}]
-    }],
-    "generationConfig": {
-      "temperature": 1,
-      "topK": 0,
-      "topP": 0.95,
-      "maxOutputTokens": 8192,
-    },
-    "safetySettings": [
+    "model": "deepseek/deepseek-r1-0528:free",
+    "messages": [
       {
-        "category": "HARM_CATEGORY_HARASSMENT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        "category": "HARM_CATEGORY_HATE_SPEECH",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-      },
-      {
-        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+        "role": "user",
+        "content": prompt
       }
-    ]
+    ],
+    "temperature": 1,
+    "top_p": 0.95,
+    "max_tokens": 8192,
+    "stream": false
   };
   
   try {
-    console.log("Sending request to API...");
-    const response = await fetch(geminiUrl, {
+    console.log("Sending request to OpenRouter API...");
+    const response = await fetch(openRouterUrl, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(payload)
@@ -305,21 +291,22 @@ async function callGeminiAPI(apiKey, prompt) {
     }
     
     const responseText = await response.text();
-    console.log("Full API Response:", responseText); // Log full response for debugging
+    console.log("OpenRouter API Response received successfully");
     
     try {
       const result = JSON.parse(responseText);
       
-      if (result.candidates && result.candidates.length > 0) {
-        if (result.candidates[0].content && result.candidates[0].content.parts) {
-          const generatedText = result.candidates[0].content.parts[0].text;
-          console.log("Successfully extracted text from API response");
+      // OpenRouter uses OpenAI-compatible format
+      if (result.choices && result.choices.length > 0) {
+        if (result.choices[0].message && result.choices[0].message.content) {
+          const generatedText = result.choices[0].message.content;
+          console.log("Successfully extracted text from OpenRouter API response");
           return generatedText;
         }
       }
       
       console.error("Unexpected API response structure:", JSON.stringify(result));
-      throw new Error("Unexpected response structure");
+      throw new Error("Unexpected response structure from OpenRouter");
     } catch (parseError) {
       console.error("Failed to parse API response:", parseError);
       console.error("Problematic response text:", responseText);
@@ -338,10 +325,10 @@ async function callGeminiAPI(apiKey, prompt) {
       psychologicalPatterns: [],
       recommendations: [],
       keyInsights: {
-        categoryInsight: "Failed to analyze categories due to API error.",
-        formatInsight: "Failed to analyze formats due to API error.",
-        topicInsight: "Failed to analyze topics due to API error.",
-        algorithmicInsight: "Failed to analyze algorithm patterns due to API error."
+        categoryInsight: "Failed to analyze categories due to OpenRouter API error.",
+        formatInsight: "Failed to analyze formats due to OpenRouter API error.",
+        topicInsight: "Failed to analyze topics due to OpenRouter API error.",
+        algorithmicInsight: "Failed to analyze algorithm patterns due to OpenRouter API error."
       }
     });
   }
