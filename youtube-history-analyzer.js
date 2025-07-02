@@ -6,7 +6,7 @@ const { jsonrepair } = require('jsonrepair');
 const fs = require('fs');
 const path = require('path');
 const fetch = require('node-fetch');
-require('dotenv').config();
+require('dotenv').config({ path: '.env.local' });
 const memoize = require('lodash/memoize');
 
 // Load the system prompt once when the module loads
@@ -21,7 +21,11 @@ try {
 
 // Configuration
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const YOUTUBE_API_KEY = process.env.YOUTUBE_API_KEY;
 const BATCH_SIZE = 50;
+
+// Debug: Check if API key is loaded
+console.log("GEMINI_API_KEY loaded:", GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : "NOT FOUND");
 const currentOutputDir = path.join(__dirname, 'output'); // Current directory
 const windowsOutputDir = path.join(__dirname, 'public', 'output'); // Windows directory
 
@@ -240,16 +244,49 @@ DO NOT INCLUDE ANY TEXT OUTSIDE THE JSON OBJECT. ENSURE YOUR RESPONSE CAN BE DIR
 // Call the Gemini API
 async function callGeminiAPI(apiKey, prompt) {
   console.log("Calling Gemini API...");
-  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-thinking-exp-01-21:generateContent?key=${apiKey}`;
+  console.log("API Key check:", apiKey ? `${apiKey.substring(0, 10)}...` : "API KEY IS NULL/UNDEFINED");
+  
+  // Check if API key exists
+  if (!apiKey) {
+    throw new Error("API key is missing. Please check your .env.local file and ensure GEMINI_API_KEY is set.");
+  }
+  
+  // Use Gemini 2.5 Pro as requested
+  const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`;
   
   const headers = {
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'x-goog-api-key': apiKey
   };
   
   const payload = {
     "contents": [{
       "parts":[{"text": prompt}]
-    }]
+    }],
+    "generationConfig": {
+      "temperature": 1,
+      "topK": 0,
+      "topP": 0.95,
+      "maxOutputTokens": 8192,
+    },
+    "safetySettings": [
+      {
+        "category": "HARM_CATEGORY_HARASSMENT",
+        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        "category": "HARM_CATEGORY_HATE_SPEECH",
+        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+      },
+      {
+        "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+        "threshold": "BLOCK_MEDIUM_AND_ABOVE"
+      }
+    ]
   };
   
   try {
@@ -309,6 +346,7 @@ async function callGeminiAPI(apiKey, prompt) {
     });
   }
 }
+
 // Enhanced parsing function that validates and formats data for both files
 
 function parseLLMOutputForDashboard(llmOutput, totalVideos, uniqueVideos) {
@@ -362,6 +400,7 @@ function parseLLMOutputForDashboard(llmOutput, totalVideos, uniqueVideos) {
     };
   }
 }
+
 // New helper functions:
 
 function cleanJsonString(jsonString) {

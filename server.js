@@ -4,6 +4,8 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const next = require('next');
+// Load environment variables from .env.local
+require('dotenv').config({ path: '.env.local' });
 const { analyzeYouTubeHistory } = require('./youtube-history-analyzer');
 
 const dev = process.env.NODE_ENV !== 'production';

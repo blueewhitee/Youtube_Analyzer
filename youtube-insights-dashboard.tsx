@@ -341,7 +341,8 @@ const YouTubeInsightsDashboard = () => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [files, setFiles] = useState<{ history: File | null }>({ history: null })
   const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [analysisData, setAnalysisData] = useState(null)
+  const [analysisData, setAnalysisData] = useState(analyticsData)
+  const [isDemo, setIsDemo] = useState(true)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
   const [activeSection, setActiveSection] = useState("upload")
   const [darkMode, setDarkMode] = useState(false)
@@ -349,12 +350,12 @@ const YouTubeInsightsDashboard = () => {
   const [transitionalProbabilityThreshold, setTransitionalProbabilityThreshold] = useState<number>(0.5)
 
   // New state for preprocessing options
-  const [apiKey, setApiKey] = useState<string>("AIzaSyDMj3e__UMwBi8Ps4tbl9pTT18tqbw6VFc") // Pre-filled API key
+  const [apiKey, setApiKey] = useState<string>(process.env.NEXT_PUBLIC_YOUTUBE_API_KEY || "")
   const [useLocalProcessing, setUseLocalProcessing] = useState<boolean>(true)
   const [processingStatus, setProcessingStatus] = useState<string>("")
   const [processingMonths, setProcessingMonths] = useState<number>(1)
 
-  // No need to load API key from localStorage since we have it hardcoded
+  // Load API key from environment variable
 
   // Prepare data with null checks
   const treemapData = useMemo(() => 
@@ -410,6 +411,7 @@ const YouTubeInsightsDashboard = () => {
       const data = await response.json();
       console.log("Data received from server after analysis:", data); // Added log
       setAnalysisData(data.dashboardData);
+      setIsDemo(false); // ADDED: Mark as real data
       setActiveSection("overview");
       setProcessingStatus("");
     } catch (error) {
@@ -481,6 +483,7 @@ const YouTubeInsightsDashboard = () => {
 
       const data = await response.json()
       setAnalysisData(data.dashboardData)
+      setIsDemo(false) // ADDED: Mark as real data
       setActiveSection("overview")
     } catch (error) {
       console.error("Analysis failed:", error)
@@ -495,12 +498,6 @@ const YouTubeInsightsDashboard = () => {
     if (fileInputRef.current) {
       fileInputRef.current.click()
     }
-  }, [])
-
-  // Skip to demo
-  const handleSkipToDemo = useCallback(() => {
-    setAnalysisData(analyticsData)
-    setActiveSection("overview")
   }, [])
 
   // Handler for category selection checkboxes
@@ -569,6 +566,19 @@ const YouTubeInsightsDashboard = () => {
         darkMode ? "bg-gray-900 text-white" : "bg-gray-50 text-gray-900",
       )}
     >
+      {/* ADDED: Demo banner */}
+      {isDemo && (
+        <div className={cn(
+          "px-4 py-3 text-center text-sm border-b",
+          darkMode 
+            ? "bg-yellow-900/20 text-yellow-200 border-yellow-800" 
+            : "bg-yellow-50 text-yellow-800 border-yellow-200"
+        )}>
+          <span className="font-medium">📊 You're viewing sample analytics.</span>
+          {" "}Upload your <code className="px-1 py-0.5 rounded bg-yellow-200/50 text-yellow-900">watch-history.json</code> file to see your personalized insights.
+        </div>
+      )}
+
       {/* Header */}
       <header
         className={cn(
@@ -587,7 +597,10 @@ const YouTubeInsightsDashboard = () => {
           <h1 className="text-2xl font-bold">YouTube Insights</h1>
         </div>
         <div className="flex items-center space-x-4">
-          <span className="text-sm">{analyticsData.totalVideosAnalyzed.toLocaleString()} videos analyzed</span>
+          <span className="text-sm">
+            {analysisData.totalVideosAnalyzed.toLocaleString()} videos analyzed
+            {isDemo && <span className="ml-1 opacity-60">(sample)</span>}
+          </span>
           <button
             onClick={() => setDarkMode(!darkMode)}
             className={cn("p-2 rounded-full", darkMode ? "bg-gray-700 text-white" : "bg-gray-200 text-gray-800")}
@@ -891,20 +904,6 @@ const YouTubeInsightsDashboard = () => {
                   <li>Extract the ZIP file and locate the "watch-history.json" file</li>
                   <li>Upload that file here for analysis</li>
                 </ol>
-              </div>
-
-              <div className="mt-6 flex justify-center">
-                <button
-                  onClick={handleSkipToDemo}
-                  className={cn(
-                    "px-6 py-3 rounded-md font-medium transition-colors",
-                    darkMode
-                      ? "bg-gray-700 hover:bg-gray-600 text-white"
-                      : "bg-gray-200 hover:bg-gray-300 text-gray-700",
-                  )}
-                >
-                  Skip to Dashboard Demo
-                </button>
               </div>
             </motion.div>
           </div>

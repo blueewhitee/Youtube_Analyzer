@@ -9,8 +9,8 @@
  * @returns {Promise<Array>} Simplified entries with category information
  */
 export async function processWatchHistory(watchHistory, apiKey, monthsBack = 1) {
-    // Use the hardcoded API key if none is provided
-    const youtubeApiKey = apiKey || "AIzaSyDMj3e__UMwBi8Ps4tbl9pTT18tqbw6VFc";
+    // Use the environment API key if none is provided
+    const youtubeApiKey = apiKey || process.env.NEXT_PUBLIC_YOUTUBE_API_KEY;
     
     // Calculate date X months ago
     const monthsAgo = new Date();
